@@ -1,0 +1,14 @@
+{
+  "include": ["src/**/*.ts"],
+  "compilerOptions": {
+    "outDir": "./dist",
+    "allowJs": false,
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "noImplicitAny": true,
+    "allowSyntheticDefaultImports": true,
+	  "esModuleInterop": true,
+    "target": "es5",
+    "lib": ["ES2015" , "DOM"]
+  }
+}
