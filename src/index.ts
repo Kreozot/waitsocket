@@ -21,7 +21,10 @@ export default class MyWebSocket {
 
   constructor(ws: WebSocket) {
     this.ws = ws;
-    this.ws.onmessage = this.onMessage.bind(this);
+    this.ws.onmessage = this.handleMessage.bind(this);
+    this.callbacksByType = new Map();
+    this.responseCallbacksByType = new Map();
+    this.responseCallbacksByRequestId = new Map();
   }
 
   protected addType(messageObject: PlainObject, type: string) {
@@ -31,7 +34,7 @@ export default class MyWebSocket {
     };
   }
 
-  protected getType(messageObject: PlainObject) {
+  public getType(messageObject: PlainObject) {
     return messageObject.type;
   }
 
@@ -45,7 +48,7 @@ export default class MyWebSocket {
     };
   }
 
-  protected getPayload(messageObject: PlainObject) {
+  public getPayload(messageObject: PlainObject) {
     return messageObject.payload;
   }
 
@@ -61,7 +64,7 @@ export default class MyWebSocket {
     };
   }
 
-  protected getRequestId(messageObject: PlainObject) {
+  public getRequestId(messageObject: PlainObject) {
     return messageObject.meta?.requestId;
   }
 
@@ -163,7 +166,8 @@ export default class MyWebSocket {
     });
   }
 
-  private onMessage(message: string) {
+  private handleMessage(event: MessageEvent) {
+    const message = event.data;
     const messageObject = JSON.parse(message);
     const type = this.getType(messageObject);
     const payload = this.getPayload(messageObject);
@@ -181,6 +185,10 @@ export default class MyWebSocket {
         messageHandler(payload, message);
       }
     }
+  }
+
+  public onOpen(callback: (event: Event) => any) {
+    this.ws.addEventListener('open', callback);
   }
 
   /**
