@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid';
 
-const DEFAULT_TIMEOUT = 60_000;
+const DEFAULT_TIMEOUT = 10_000;
 
 type PlainObject = {
   [key: string]: any
@@ -135,7 +135,6 @@ export default class MyWebSocket {
     type: string,
     payload?: PlainObject,
     waitForType?: string,
-    timeout: number = this.timeout,
   ): Promise<{ payload: PlainObject, message: string }> {
     return new Promise((resolve, reject) => {
       if (waitForType) {
@@ -143,7 +142,7 @@ export default class MyWebSocket {
           this.responseCallbacksByType.delete(waitForType);
           // TODO: Custom error
           reject(new Error(`Timeout while waiting for response for type=${waitForType}`));
-        }, timeout);
+        }, this.timeout);
         const callback = (responsePayload: PlainObject, message: string) => {
           clearTimeout(timeoutId);
           this.responseCallbacksByType.delete(waitForType);
@@ -159,7 +158,7 @@ export default class MyWebSocket {
           this.responseCallbacksByRequestId.delete(requestId);
           // TODO: Custom error
           reject(new Error(`Timeout while waiting for response for requestId=${requestId}`));
-        }, timeout);
+        }, this.timeout);
         const callback = (responsePayload: PlainObject, message: string) => {
           clearTimeout(timeoutId);
           this.responseCallbacksByRequestId.delete(requestId);
