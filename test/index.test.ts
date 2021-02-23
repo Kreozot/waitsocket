@@ -23,6 +23,19 @@ test('send() is working with WebSocket', async (cb) => {
   });
 });
 
+test('send() is working with url parameter in constructor', async (cb) => {
+  const waitSocket = new WaitSocket(`ws://localhost:${WS_MOCK_PORT}`);
+  await waitSocket.waitForOpen();
+  waitSocket.send('test');
+  waitSocket.on(MessageType.Message1Answer, (payload, message) => {
+    expect(payload.test).toBe(123);
+    const messageObject = JSON.parse(message);
+    expect(messageObject.payload.test).toBe(123);
+    expect(messageObject.type).toBe(MessageType.Message1Answer);
+    cb();
+  });
+});
+
 test('send() is working with RobustWebSocket', async (cb) => {
   const ws = new RobustWebSocket(`ws://localhost:${WS_MOCK_PORT}`);
   const waitSocket = new WaitSocket(ws);

@@ -1,13 +1,15 @@
 import { nanoid } from 'nanoid';
 
+/** Default timeout for response message waiting */
 const DEFAULT_TIMEOUT = 10_000;
 
 type PlainObject = {
   [key: string]: any
 };
 
-type OnMessageCallback = (payload: PlainObject, message: string) => void;
+type OnMessageCallback = (payload: any, message: string) => void;
 
+/** WebSocket ready state */
 enum ReadyState {
   Connecting = 0,
   Open = 1,
@@ -16,24 +18,48 @@ enum ReadyState {
 }
 
 export default class MyWebSocket {
+  /** WebSocket instance */
   ws: WebSocket;
 
+  /** Timeout for response message waiting */
   public timeout: number = DEFAULT_TIMEOUT;
 
+  /** Callbacks for incoming messages by type. Adds by on() function */
   callbacksByType: Map<string, OnMessageCallback>;
 
+  /** Callbacks for response messages by type. Adds by sendRequest() with waitForType parameter. */
   responseCallbacksByType: Map<string, OnMessageCallback>;
 
+  /** Callbacks for response messages by requestId. Adds by sendRequest() */
   responseCallbacksByRequestId: Map<string, OnMessageCallback>;
 
-  constructor(ws: WebSocket) {
-    this.ws = ws;
+  /**
+   * Constructor
+   * @param ws WebSocket instance (you can use any extensions, like RobustWebSocket)
+   * or WebSocket server URI string
+   * @example
+   * const waitSocket = new WaitSocket('ws://my.websocket.server:9000');
+   * @example
+   * const ws = new RobustWebSocket('ws://my.websocket.server:9000');
+   * const waitSocket = new WaitSocket(ws);
+   */
+  constructor(ws: WebSocket | string) {
+    if (typeof ws === 'string') {
+      this.ws = new WebSocket(ws);
+    } else {
+      this.ws = ws;
+    }
     this.ws.onmessage = this.handleMessage.bind(this);
     this.callbacksByType = new Map();
     this.responseCallbacksByType = new Map();
     this.responseCallbacksByRequestId = new Map();
   }
 
+  /**
+   * Returns message object with type in it. Can be overrided.
+   * @param messageObject Message object
+   * @param type Message type identifier
+   */
   protected addType(messageObject: PlainObject, type: string) {
     return {
       ...messageObject,
@@ -41,11 +67,20 @@ export default class MyWebSocket {
     };
   }
 
-  public getType(messageObject: PlainObject) {
+  /**
+   * Returns message type. Can be overrided.
+   * @param messageObject Message object
+   */
+  public getType(messageObject: PlainObject): string {
     return messageObject.type;
   }
 
-  protected addPayload(messageObject: PlainObject, payload?: PlainObject) {
+  /**
+   * Returns message object with payload in it. Can be overrided.
+   * @param messageObject Message object
+   * @param payload Message payload object
+   */
+  protected addPayload(messageObject: PlainObject, payload?: any) {
     if (!payload) {
       return { ...messageObject };
     }
@@ -55,10 +90,20 @@ export default class MyWebSocket {
     };
   }
 
-  public getPayload(messageObject: PlainObject) {
+  /**
+   * Returns message payload. Can be overrided.
+   * @param messageObject Message object
+   */
+  public getPayload(messageObject: PlainObject): any {
     return messageObject.payload;
   }
 
+  /**
+   * Returns message object with requestId meta data.
+   * Used for making response messages from server. Can be overrided.
+   * @param messageObject Message object
+   * @param type Message type identifier
+   */
   protected addRequestId(messageObject: PlainObject, requestId?: string) {
     if (!requestId) {
       return { ...messageObject };
@@ -71,11 +116,22 @@ export default class MyWebSocket {
     };
   }
 
+  /**
+   * Returns message requestId meta data.
+   * Used for receiving response messages from server. Can be overrided.
+   * @param messageObject Message object
+   */
   public getRequestId(messageObject: PlainObject) {
     return messageObject.meta?.requestId;
   }
 
-  protected buildMessage(type: string, payload?: PlainObject, requestId?: string): string {
+  /**
+   * Build and serialize message out of its parts.
+   * @param type Message type identifier
+   * @param payload Message payload
+   * @param requestId requestId meta data
+   */
+  protected buildMessage(type: string, payload?: any, requestId?: string): string {
     let messageObject: PlainObject = this.addRequestId({}, requestId);
     messageObject = this.addPayload(messageObject, payload);
     messageObject = this.addType(messageObject, type);
@@ -84,7 +140,7 @@ export default class MyWebSocket {
 
   /**
    * Send message to server
-   * @param message Serialized message.
+   * @param message Serialized message
    */
   public send(message: string) {
     this.ws.send(message);
@@ -92,10 +148,10 @@ export default class MyWebSocket {
 
   /**
    * Send message to server
-   * @param type Message type identifier.
-   * @param payload Message payload object.
+   * @param type Message type identifier
+   * @param payload Message payload
    */
-  public sendMessage(type: string, payload?: PlainObject) {
+  public sendMessage(type: string, payload?: any) {
     const message = this.buildMessage(type, payload);
     this.send(message);
   }
@@ -108,7 +164,7 @@ export default class MyWebSocket {
    * If server not returns "meta.requestId", you can specify "waitForType" parameter:
    * In that case the response will be identified by "type" in the response message.
    * @param type Message type identifier.
-   * @param payload Message payload object.
+   * @param payload Message payload
    * @param waitForType Message type in the response waiting for. Optional and not recommended.
    * @param timeout Timeout value (ms) for waiting for the response.
    * @returns Promise<{payload, message}>
@@ -133,9 +189,9 @@ export default class MyWebSocket {
    */
   public async sendRequest(
     type: string,
-    payload?: PlainObject,
+    payload?: any,
     waitForType?: string,
-  ): Promise<{ payload: PlainObject, message: string }> {
+  ): Promise<{ payload: any, message: string }> {
     return new Promise((resolve, reject) => {
       if (waitForType) {
         const timeoutId = setTimeout(() => {
@@ -172,6 +228,10 @@ export default class MyWebSocket {
     });
   }
 
+  /**
+   * Handle incoming WebSocket message event
+   * @param event Message event object
+   */
   private handleMessage(event: MessageEvent) {
     const message = event.data;
     const messageObject = JSON.parse(message);
@@ -193,6 +253,7 @@ export default class MyWebSocket {
     }
   }
 
+  /** Asynchronously wait for WebSocket connection to open */
   public async waitForOpen() {
     if (this.ws.readyState === ReadyState.Open) {
       return;
