@@ -18,7 +18,7 @@ enum ReadyState {
 export default class MyWebSocket {
   ws: WebSocket;
 
-  timeout: number = DEFAULT_TIMEOUT;
+  public timeout: number = DEFAULT_TIMEOUT;
 
   callbacksByType: Map<string, OnMessageCallback>;
 

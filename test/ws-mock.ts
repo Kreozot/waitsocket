@@ -8,6 +8,11 @@ const wss = new WS.Server({
 export enum MessageType {
   Message1 = 'MESSAGE_1',
   Message1Answer = 'MESSAGE_1_ANSWER',
+  Request1 = 'REQUEST_1',
+  Request1Answer = 'REQUEST_1_ANSWER',
+  Request2 = 'REQUEST_2',
+  Request2Answer = 'REQUEST_2_ANSWER',
+  RequestWithoutResponse = 'REQUEST_WITHOUT_RESPONSE',
 }
 
 wss.on('connection', (ws: WS) => {
@@ -24,13 +29,28 @@ wss.on('connection', (ws: WS) => {
 
     const messageObject = JSON.parse(message);
 
-    const { type } = messageObject;
+    const { type, payload, meta } = messageObject;
     if (type === MessageType.Message1) {
       ws.send(JSON.stringify({
         type: MessageType.Message1Answer,
         payload: {
           test: 123,
         },
+      }));
+    } else if (type === MessageType.Request1) {
+      ws.send(JSON.stringify({
+        type: MessageType.Request1Answer,
+        payload: {
+          test: 234,
+        },
+        meta: {
+          requestId: meta.requestId,
+        },
+      }));
+    } else if (type === MessageType.Request2) {
+      ws.send(JSON.stringify({
+        type: MessageType.Request2Answer,
+        payload,
       }));
     }
   });
