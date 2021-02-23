@@ -8,6 +8,13 @@ type PlainObject = {
 
 type OnMessageCallback = (payload: PlainObject, message: string) => void;
 
+enum ReadyState {
+  Connecting = 0,
+  Open = 1,
+  Closing = 2,
+  Closed = 3,
+}
+
 export default class MyWebSocket {
   ws: WebSocket;
 
@@ -187,8 +194,13 @@ export default class MyWebSocket {
     }
   }
 
-  public onOpen(callback: (event: Event) => any) {
-    this.ws.addEventListener('open', callback);
+  public async waitForOpen() {
+    if (this.ws.readyState === ReadyState.Open) {
+      return;
+    }
+    await new Promise((resolve) => {
+      this.ws.addEventListener('open', resolve);
+    });
   }
 
   /**
