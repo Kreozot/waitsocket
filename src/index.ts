@@ -49,7 +49,7 @@ export default class MyWebSocket {
     } else {
       this.ws = ws;
     }
-    this.ws.onmessage = this.handleMessage.bind(this);
+    this.ws.addEventListener('message', this.handleMessage.bind(this));
     this.callbacksByType = new Map();
     this.responseCallbacksByType = new Map();
     this.responseCallbacksByRequestId = new Map();

@@ -1,12 +1,17 @@
 {
   "name": "waitsocket",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Library for better handling WebSocket interactions and waiting for response messages",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -d",
+    "prepublishOnly": "npm test && npm run build",
     "test": "jest --coverage"
   },
+  "files": [
+    "src",
+    "dist"
+  ],
   "husky": {
     "hooks": {
       "pre-commit": "lint-staged && npm test"
@@ -46,6 +51,6 @@
     "response",
     "request"
   ],
-  "author": "",
+  "author": "Sergey Sharov <sergey@sharov.dev> (https://sharov.dev)",
   "license": "ISC"
 }

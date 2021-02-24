@@ -141,3 +141,13 @@ test('off() removes the callback', async (cb) => {
     cb();
   }, 100);
 });
+
+test('Native WebSocket message event listener is working', async () => {
+  const ws = new WebSocket(`ws://localhost:${WS_MOCK_PORT}`);
+  const callback = jest.fn();
+  ws.onmessage = callback;
+  const waitSocket = new WaitSocket(ws);
+  await waitSocket.waitForOpen();
+  await waitSocket.sendRequest(MessageType.Request1);
+  expect(callback).toBeCalled();
+});
