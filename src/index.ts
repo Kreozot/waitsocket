@@ -8,6 +8,7 @@ type PlainObject = {
 };
 
 type OnMessageCallback = (payload: any, message: string) => void;
+type MessageInterceptor = (messageObject: PlainObject) => PlainObject;
 
 /** WebSocket ready state */
 enum ReadyState {
@@ -33,6 +34,12 @@ export default class MyWebSocket {
   /** Callbacks for response messages by requestId. Adds by sendRequest() */
   responseCallbacksByRequestId: Map<string, OnMessageCallback>;
 
+  /** Incoming message interceptors */
+  incomingInterceptors: Set<MessageInterceptor>;
+
+  /** Outgoing message interceptors */
+  outgoingInterceptors: Set<MessageInterceptor>;
+
   /**
    * Constructor
    * @param ws WebSocket instance (you can use any extensions, like RobustWebSocket)
@@ -53,6 +60,8 @@ export default class MyWebSocket {
     this.callbacksByType = new Map();
     this.responseCallbacksByType = new Map();
     this.responseCallbacksByRequestId = new Map();
+    this.incomingInterceptors = new Set();
+    this.outgoingInterceptors = new Set();
   }
 
   /**
@@ -135,6 +144,9 @@ export default class MyWebSocket {
     let messageObject: PlainObject = this.addRequestId({}, requestId);
     messageObject = this.addPayload(messageObject, payload);
     messageObject = this.addType(messageObject, type);
+    this.outgoingInterceptors.forEach((interceptor) => {
+      messageObject = interceptor(messageObject);
+    });
     return JSON.stringify(messageObject);
   }
 
@@ -234,7 +246,11 @@ export default class MyWebSocket {
    */
   private handleMessage(event: MessageEvent) {
     const message = event.data;
-    const messageObject = JSON.parse(message);
+    let messageObject = JSON.parse(message);
+    this.incomingInterceptors.forEach((interceptor) => {
+      messageObject = interceptor(messageObject);
+    });
+
     const type = this.getType(messageObject);
     const payload = this.getPayload(messageObject);
     const requestId = this.getRequestId(messageObject);
@@ -279,4 +295,31 @@ export default class MyWebSocket {
   public off(type: string) {
     this.callbacksByType.delete(type);
   }
+
+  /** Message interceptors */
+  public interceptors = {
+    /** Outgoing message interceptors */
+    outgoing: {
+      /** Add an outgoing message interceptor (which returns modified message object) */
+      use: (interceptor: MessageInterceptor) => {
+        this.outgoingInterceptors.add(interceptor);
+        return interceptor;
+      },
+      /** Remove a registered outgoing interceptor */
+      eject: (interceptor: MessageInterceptor) => {
+        this.outgoingInterceptors.delete(interceptor);
+      },
+    },
+    incoming: {
+      /** Add an incoming message interceptor (which returns modified message object) */
+      use: (interceptor: MessageInterceptor) => {
+        this.incomingInterceptors.add(interceptor);
+        return interceptor;
+      },
+      /** Remove a registered incoming interceptor */
+      eject: (interceptor: MessageInterceptor) => {
+        this.incomingInterceptors.delete(interceptor);
+      },
+    },
+  };
 }

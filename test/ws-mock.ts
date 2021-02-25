@@ -10,7 +10,7 @@ export enum MessageType {
   Message1Answer = 'MESSAGE_1_ANSWER',
   Request1 = 'REQUEST_1',
   Request1Answer = 'REQUEST_1_ANSWER',
-  Request2 = 'REQUEST_2',
+  RequestMirror = 'REQUEST_2',
   Request2Answer = 'REQUEST_2_ANSWER',
   RequestWithoutResponse = 'REQUEST_WITHOUT_RESPONSE',
 }
@@ -47,7 +47,7 @@ wss.on('connection', (ws: WS) => {
           requestId: meta.requestId,
         },
       }));
-    } else if (type === MessageType.Request2) {
+    } else if (type === MessageType.RequestMirror) {
       ws.send(JSON.stringify({
         type: MessageType.Request2Answer,
         payload,

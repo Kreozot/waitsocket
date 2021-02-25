@@ -95,7 +95,7 @@ test('sendRequest() with waitForType is working', async () => {
   const waitSocket = new WaitSocket(ws);
   await waitSocket.waitForOpen();
   const { payload, message } = await waitSocket
-    .sendRequest(MessageType.Request2, { test: 345 }, MessageType.Request2Answer);
+    .sendRequest(MessageType.RequestMirror, { test: 345 }, MessageType.Request2Answer);
   expect(payload.test).toBe(345);
   const messageObject = JSON.parse(message);
   expect(messageObject.payload.test).toBe(345);
@@ -150,4 +150,33 @@ test('Native WebSocket message event listener is working', async () => {
   await waitSocket.waitForOpen();
   await waitSocket.sendRequest(MessageType.Request1);
   expect(callback).toBeCalled();
+});
+
+test('Interceptors are working', async () => {
+  const waitSocket = new WaitSocket(`ws://localhost:${WS_MOCK_PORT}`);
+  await waitSocket.waitForOpen();
+  const outgoingInterceptor = waitSocket.interceptors.outgoing.use((messageObject) => ({
+    ...messageObject,
+    payload: {
+      ...messageObject.payload,
+      test: messageObject.payload.test * 2,
+    },
+  }));
+  const incomingInterceptor = waitSocket.interceptors.incoming.use((messageObject) => ({
+    ...messageObject,
+    payload: {
+      ...messageObject.payload,
+      test: messageObject.payload.test * 10,
+    },
+  }));
+  const { payload } = await waitSocket
+    .sendRequest(MessageType.RequestMirror, { test: 2 }, MessageType.Request2Answer);
+  expect(payload.test).toBe(40);
+
+  waitSocket.interceptors.outgoing.eject(outgoingInterceptor);
+  waitSocket.interceptors.incoming.eject(incomingInterceptor);
+
+  const { payload: payloadWithoutInterceptors } = await waitSocket
+    .sendRequest(MessageType.RequestMirror, { test: 2 }, MessageType.Request2Answer);
+  expect(payloadWithoutInterceptors.test).toBe(2);
 });

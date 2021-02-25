@@ -21,6 +21,18 @@ Simplifies communication over WebSocket.
   const { payload } = await waitSocket.sendRequest('MESSAGE_TYPE', requestPayload);
   ```
 
+* Ability to add interceptors to modify incoming and outgoing messages:
+  ```javascript
+  waitSocket.interceptors.incoming.use((messageObject) => {
+    console.log('Let\'s see what we have received', messageObject);
+    // And modify the object
+    return {
+      ...messageObject,
+      something: 'new',
+    };
+  });
+  ```
+
 * Flexible message format customization
 
 * Fully TypeScript
