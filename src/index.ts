@@ -3,15 +3,15 @@ import { nanoid } from 'nanoid';
 /** Default timeout for response message waiting */
 const DEFAULT_TIMEOUT = 10_000;
 
-type PlainObject = {
+export type PlainObject = {
   [key: string]: any
 };
 
-type OnMessageCallback = (payload: any, message: string) => void;
-type MessageInterceptor = (messageObject: PlainObject) => PlainObject;
+export type OnMessageCallback = (payload: any, message: string) => void;
+export type MessageInterceptor = (messageObject: PlainObject) => PlainObject;
 
 /** WebSocket ready state */
-enum ReadyState {
+export enum ReadyState {
   Connecting = 0,
   Open = 1,
   Closing = 2,
@@ -284,7 +284,7 @@ export default class MyWebSocket {
    * @param type Message type identifier
    * @param callback Handler callback
    */
-  public on(type: string, callback: OnMessageCallback) {
+  public onMessage(type: string, callback: OnMessageCallback) {
     this.callbacksByType.set(type, callback);
   }
 
@@ -292,7 +292,7 @@ export default class MyWebSocket {
    * Remove handler for the message type
    * @param type Message type identifier
    */
-  public off(type: string) {
+  public offMessage(type: string) {
     this.callbacksByType.delete(type);
   }
 

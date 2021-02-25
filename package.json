@@ -1,6 +1,6 @@
 {
   "name": "waitsocket",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Library for better handling WebSocket interactions and waiting for response messages",
   "main": "dist/index.js",
   "scripts": {

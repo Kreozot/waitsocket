@@ -13,7 +13,7 @@ test('send() is working with WebSocket', async (cb) => {
   const waitSocket = new WaitSocket(ws);
   await waitSocket.waitForOpen();
   waitSocket.send('test');
-  waitSocket.on(MessageType.Message1Answer, (payload, message) => {
+  waitSocket.onMessage(MessageType.Message1Answer, (payload, message) => {
     expect(payload.test).toBe(123);
     const messageObject = JSON.parse(message);
     expect(messageObject.payload.test).toBe(123);
@@ -27,7 +27,7 @@ test('send() is working with url parameter in constructor', async (cb) => {
   const waitSocket = new WaitSocket(`ws://localhost:${WS_MOCK_PORT}`);
   await waitSocket.waitForOpen();
   waitSocket.send('test');
-  waitSocket.on(MessageType.Message1Answer, (payload, message) => {
+  waitSocket.onMessage(MessageType.Message1Answer, (payload, message) => {
     expect(payload.test).toBe(123);
     const messageObject = JSON.parse(message);
     expect(messageObject.payload.test).toBe(123);
@@ -41,7 +41,7 @@ test('send() is working with RobustWebSocket', async (cb) => {
   const waitSocket = new WaitSocket(ws);
   await waitSocket.waitForOpen();
   waitSocket.send('test');
-  waitSocket.on(MessageType.Message1Answer, (payload, message) => {
+  waitSocket.onMessage(MessageType.Message1Answer, (payload, message) => {
     expect(payload.test).toBe(123);
     const messageObject = JSON.parse(message);
     expect(messageObject.payload.test).toBe(123);
@@ -56,7 +56,7 @@ test('sendMessage() is working', async (cb) => {
   const waitSocket = new WaitSocket(ws);
   await waitSocket.waitForOpen();
   waitSocket.sendMessage(MessageType.Message1);
-  waitSocket.on(MessageType.Message1Answer, (payload, message) => {
+  waitSocket.onMessage(MessageType.Message1Answer, (payload, message) => {
     expect(payload.test).toBe(123);
     const messageObject = JSON.parse(message);
     expect(messageObject.payload.test).toBe(123);
@@ -130,10 +130,10 @@ test('off() removes the callback', async (cb) => {
   waitSocket.timeout = 100;
   await waitSocket.waitForOpen();
   const callback = jest.fn();
-  waitSocket.on(MessageType.Message1Answer, () => {
+  waitSocket.onMessage(MessageType.Message1Answer, () => {
     callback();
   });
-  waitSocket.off(MessageType.Message1Answer);
+  waitSocket.offMessage(MessageType.Message1Answer);
   waitSocket.send('test');
   setTimeout(() => {
     expect(callback).not.toBeCalled();
