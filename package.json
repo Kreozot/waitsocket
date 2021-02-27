@@ -1,8 +1,8 @@
 {
   "name": "waitsocket",
-  "version": "0.3.0",
+  "version": "1.0.0-rc.1",
   "description": "Library for better handling WebSocket interactions and waiting for response messages",
-  "main": "dist/index.js",
+  "main": "dist/WaitSocket.js",
   "scripts": {
     "build": "tsc -d",
     "prepublishOnly": "npm test && npm run build",
@@ -21,6 +21,8 @@
     "*.{js,ts}": "eslint"
   },
   "dependencies": {
+    "@sinclair/typebox": "^0.12.9",
+    "ajv": "^7.1.1",
     "nanoid": "^3.1.20"
   },
   "devDependencies": {
@@ -35,6 +37,7 @@
     "eslint-plugin-jsx-a11y": "^6.4.1",
     "eslint-plugin-react": "^7.21.5",
     "eslint-plugin-react-hooks": "^4.0.0",
+    "get-port": "^5.1.1",
     "husky": "^5.1.0",
     "jest": "^26.6.3",
     "jsdom": "^16.4.0",

@@ -70,33 +70,37 @@ const ws = new RobustWebSocket('ws://my.websocket.server:9000');
 const waitSocket = new WaitSocket(ws);
 ```
 
-## API
+## JSONSchema Validation
 
-### constructor
+You can define JSONSchema for each type of your incoming and outgoing messages. For incoming messages, validation process original deserialized message (before any interceptors). For outgoing messages, validation process resulting message (after all interceptors, but before serialization, of course).
+
+```javascript
+this.waitSocket.addIncomingJSONSchema('MESSAGE_TYPE', jsonSchemaObject);
+```
 
 ## Customization
 
 If you wish to use your own message format, you can do it by extending WaitSocket class and overriding these functions, responsible for message construction and parsing:
 
-* `addType(messageObject: PlainObject, type: string)` - Returns message object with type in it.
-* `getType(messageObject: PlainObject): string` - Returns message type.
-* `addPayload(messageObject: PlainObject, payload?: any)` - Returns message object with payload in it.
-* `getPayload(messageObject: PlainObject): any` - Returns message payload.
-* `addRequestId(messageObject: PlainObject, requestId?: string)` - Returns message object with requestId meta data.
-* `getRequestId(messageObject: PlainObject)` - Returns message requestId meta data.
+* `getType(messageObject: MessageType): string` - Returns message type.
+* `getPayload(messageObject: MessageType): any` - Returns message payload.
+* `getRequestId(messageObject: MessageType): string` - Returns message requestId meta data.
+* `getMessageObject(type: string, payload?: any, requestId?: string): MessageType;` - Returns message object with type, payload and requestId in it.
 
 Example (use `body` parameter instead of `payload`):
 ```typescript
-class myWaitSocket extends WaitSocket {
-  protected addPayload(messageObject: PlainObject, payload?: PlainObject) {
-    if (!body) {
-      return { ...messageObject };
+class myWaitSocket extends AbstractWaitSocket<MyMessageType> {
+  protected getMessageObject(type: string, payload?: any, requestId?: string) {
+    const result: DefaultMessageType = { type };
+    if (payload) {
+      result.body = payload;
     }
-    return {
-      ...messageObject,
-      body: payload,
-    };
+    if (requestId) {
+      result.meta = { requestId };
+    }
+    return result;
   }
+
 
   public getPayload(messageObject: PlainObject) {
     return messageObject.body;

@@ -1,15 +1,21 @@
 /// <reference path="./declaration.d.ts" />
 import RobustWebSocket from 'robust-websocket';
 
-import wss, { WS_MOCK_PORT, MessageType } from './ws-mock';
-import WaitSocket from '../src/index';
+import WSMock, { MessageType } from './ws-mock';
+import WaitSocket from '../src/WaitSocket';
+
+const wss = new WSMock();
+
+beforeAll(async () => {
+  await wss.startServer();
+});
 
 afterAll(() => {
   wss.close();
 });
 
 test('send() is working with WebSocket', async (cb) => {
-  const ws = new WebSocket(`ws://localhost:${WS_MOCK_PORT}`);
+  const ws = new WebSocket(wss.url);
   const waitSocket = new WaitSocket(ws);
   await waitSocket.waitForOpen();
   waitSocket.send('test');
@@ -24,7 +30,7 @@ test('send() is working with WebSocket', async (cb) => {
 });
 
 test('send() is working with url parameter in constructor', async (cb) => {
-  const waitSocket = new WaitSocket(`ws://localhost:${WS_MOCK_PORT}`);
+  const waitSocket = new WaitSocket(wss.url);
   await waitSocket.waitForOpen();
   waitSocket.send('test');
   waitSocket.onMessage(MessageType.Message1Answer, (payload, message) => {
@@ -37,7 +43,7 @@ test('send() is working with url parameter in constructor', async (cb) => {
 });
 
 test('send() is working with RobustWebSocket', async (cb) => {
-  const ws = new RobustWebSocket(`ws://localhost:${WS_MOCK_PORT}`);
+  const ws = new RobustWebSocket(wss.url);
   const waitSocket = new WaitSocket(ws);
   await waitSocket.waitForOpen();
   waitSocket.send('test');
@@ -52,7 +58,7 @@ test('send() is working with RobustWebSocket', async (cb) => {
 });
 
 test('sendMessage() is working', async (cb) => {
-  const ws = new WebSocket(`ws://localhost:${WS_MOCK_PORT}`);
+  const ws = new WebSocket(wss.url);
   const waitSocket = new WaitSocket(ws);
   await waitSocket.waitForOpen();
   waitSocket.sendMessage(MessageType.Message1);
@@ -67,7 +73,7 @@ test('sendMessage() is working', async (cb) => {
 });
 
 test('sendRequest() is working', async (cb) => {
-  const ws = new WebSocket(`ws://localhost:${WS_MOCK_PORT}`);
+  const ws = new WebSocket(wss.url);
   const waitSocket = new WaitSocket(ws);
   await waitSocket.waitForOpen();
   const { payload, message } = await waitSocket.sendRequest(MessageType.Request1);
@@ -80,7 +86,7 @@ test('sendRequest() is working', async (cb) => {
 });
 
 test('sendRequest() rejects when no response', async () => {
-  const ws = new WebSocket(`ws://localhost:${WS_MOCK_PORT}`);
+  const ws = new WebSocket(wss.url);
   const waitSocket = new WaitSocket(ws);
   waitSocket.timeout = 100;
   await waitSocket.waitForOpen();
@@ -91,11 +97,11 @@ test('sendRequest() rejects when no response', async () => {
 });
 
 test('sendRequest() with waitForType is working', async () => {
-  const ws = new WebSocket(`ws://localhost:${WS_MOCK_PORT}`);
+  const ws = new WebSocket(wss.url);
   const waitSocket = new WaitSocket(ws);
   await waitSocket.waitForOpen();
   const { payload, message } = await waitSocket
-    .sendRequest(MessageType.RequestMirror, { test: 345 }, MessageType.Request2Answer);
+    .sendRequest(MessageType.Request2, null, MessageType.Request2Answer);
   expect(payload.test).toBe(345);
   const messageObject = JSON.parse(message);
   expect(messageObject.payload.test).toBe(345);
@@ -104,19 +110,19 @@ test('sendRequest() with waitForType is working', async () => {
 });
 
 test('sendRequest() with waitForType rejects when no response', async () => {
-  const ws = new WebSocket(`ws://localhost:${WS_MOCK_PORT}`);
+  const ws = new WebSocket(wss.url);
   const waitSocket = new WaitSocket(ws);
   waitSocket.timeout = 100;
   await waitSocket.waitForOpen();
   await expect(async () => {
     await waitSocket
-      .sendRequest(MessageType.RequestWithoutResponse, null, MessageType.Request2Answer);
+      .sendRequest(MessageType.RequestWithoutResponse, null, MessageType.ResponseMirror);
   }).rejects.toThrow();
   ws.close();
 });
 
 test('waitForOpen() is working after open', async () => {
-  const ws = new WebSocket(`ws://localhost:${WS_MOCK_PORT}`);
+  const ws = new WebSocket(wss.url);
   const waitSocket = new WaitSocket(ws);
   await waitSocket.waitForOpen();
   await waitSocket.waitForOpen();
@@ -125,7 +131,7 @@ test('waitForOpen() is working after open', async () => {
 });
 
 test('off() removes the callback', async (cb) => {
-  const ws = new WebSocket(`ws://localhost:${WS_MOCK_PORT}`);
+  const ws = new WebSocket(wss.url);
   const waitSocket = new WaitSocket(ws);
   waitSocket.timeout = 100;
   await waitSocket.waitForOpen();
@@ -143,7 +149,7 @@ test('off() removes the callback', async (cb) => {
 });
 
 test('Native WebSocket message event listener is working', async () => {
-  const ws = new WebSocket(`ws://localhost:${WS_MOCK_PORT}`);
+  const ws = new WebSocket(wss.url);
   const callback = jest.fn();
   ws.onmessage = callback;
   const waitSocket = new WaitSocket(ws);
@@ -153,7 +159,7 @@ test('Native WebSocket message event listener is working', async () => {
 });
 
 test('Interceptors are working', async () => {
-  const waitSocket = new WaitSocket(`ws://localhost:${WS_MOCK_PORT}`);
+  const waitSocket = new WaitSocket(wss.url);
   await waitSocket.waitForOpen();
   const outgoingInterceptor = waitSocket.interceptors.outgoing.use((messageObject) => ({
     ...messageObject,
@@ -170,13 +176,13 @@ test('Interceptors are working', async () => {
     },
   }));
   const { payload } = await waitSocket
-    .sendRequest(MessageType.RequestMirror, { test: 2 }, MessageType.Request2Answer);
+    .sendRequest(MessageType.RequestMirror, { test: 2 });
   expect(payload.test).toBe(40);
 
   waitSocket.interceptors.outgoing.eject(outgoingInterceptor);
   waitSocket.interceptors.incoming.eject(incomingInterceptor);
 
   const { payload: payloadWithoutInterceptors } = await waitSocket
-    .sendRequest(MessageType.RequestMirror, { test: 2 }, MessageType.Request2Answer);
+    .sendRequest(MessageType.RequestMirror, { test: 2 });
   expect(payloadWithoutInterceptors.test).toBe(2);
 });

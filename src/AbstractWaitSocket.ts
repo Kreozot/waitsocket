@@ -1,14 +1,11 @@
 import { nanoid } from 'nanoid';
+import Ajv from 'ajv';
+import { SchemaObject, ValidateFunction } from 'ajv/dist/types';
 
 /** Default timeout for response message waiting */
 const DEFAULT_TIMEOUT = 10_000;
 
-export type PlainObject = {
-  [key: string]: any
-};
-
-export type OnMessageCallback = (payload: any, message: string) => void;
-export type MessageInterceptor = (messageObject: PlainObject) => PlainObject;
+export type OnMessageCallback = (payload: any, message: string, error?: string) => void;
 
 /** WebSocket ready state */
 export enum ReadyState {
@@ -18,9 +15,15 @@ export enum ReadyState {
   Closed = 3,
 }
 
-export default class MyWebSocket {
+export default abstract class WaitSocket<MessageType> {
   /** WebSocket instance */
   ws: WebSocket;
+
+  /** AJV instance for validate message by JSONSchema */
+  ajv: Ajv;
+
+  /** Validation function for common message format */
+  validateCommonObject: ValidateFunction<MessageType>;
 
   /** Timeout for response message waiting */
   public timeout: number = DEFAULT_TIMEOUT;
@@ -35,10 +38,16 @@ export default class MyWebSocket {
   responseCallbacksByRequestId: Map<string, OnMessageCallback>;
 
   /** Incoming message interceptors */
-  incomingInterceptors: Set<MessageInterceptor>;
+  incomingInterceptors: Set<(messageObject: MessageType) => MessageType>;
 
   /** Outgoing message interceptors */
-  outgoingInterceptors: Set<MessageInterceptor>;
+  outgoingInterceptors: Set<(messageObject: MessageType) => MessageType>;
+
+  /** Map of JSONSchemas by incoming message type */
+  incomingJSONSchemas: Map<string, ValidateFunction<MessageType>>;
+
+  /** Map of JSONSchemas by outgoing message type */
+  outgoingJSONSchemas: Map<string, ValidateFunction<MessageType>>;
 
   /**
    * Constructor
@@ -50,89 +59,50 @@ export default class MyWebSocket {
    * const ws = new RobustWebSocket('ws://my.websocket.server:9000');
    * const waitSocket = new WaitSocket(ws);
    */
-  constructor(ws: WebSocket | string) {
+  constructor(ws: WebSocket | string, jsonSchema: SchemaObject) {
     if (typeof ws === 'string') {
       this.ws = new WebSocket(ws);
     } else {
       this.ws = ws;
     }
     this.ws.addEventListener('message', this.handleMessage.bind(this));
+    this.ajv = new Ajv();
+    this.validateCommonObject = this.ajv.compile(jsonSchema);
     this.callbacksByType = new Map();
     this.responseCallbacksByType = new Map();
     this.responseCallbacksByRequestId = new Map();
     this.incomingInterceptors = new Set();
     this.outgoingInterceptors = new Set();
-  }
-
-  /**
-   * Returns message object with type in it. Can be overrided.
-   * @param messageObject Message object
-   * @param type Message type identifier
-   */
-  protected addType(messageObject: PlainObject, type: string) {
-    return {
-      ...messageObject,
-      type,
-    };
+    this.incomingJSONSchemas = new Map();
+    this.outgoingJSONSchemas = new Map();
   }
 
   /**
    * Returns message type. Can be overrided.
    * @param messageObject Message object
    */
-  public getType(messageObject: PlainObject): string {
-    return messageObject.type;
-  }
-
-  /**
-   * Returns message object with payload in it. Can be overrided.
-   * @param messageObject Message object
-   * @param payload Message payload object
-   */
-  protected addPayload(messageObject: PlainObject, payload?: any) {
-    if (!payload) {
-      return { ...messageObject };
-    }
-    return {
-      ...messageObject,
-      payload,
-    };
-  }
+  public abstract getType(messageObject: MessageType): string;
 
   /**
    * Returns message payload. Can be overrided.
    * @param messageObject Message object
    */
-  public getPayload(messageObject: PlainObject): any {
-    return messageObject.payload;
-  }
-
-  /**
-   * Returns message object with requestId meta data.
-   * Used for making response messages from server. Can be overrided.
-   * @param messageObject Message object
-   * @param type Message type identifier
-   */
-  protected addRequestId(messageObject: PlainObject, requestId?: string) {
-    if (!requestId) {
-      return { ...messageObject };
-    }
-    return {
-      ...messageObject,
-      meta: {
-        requestId,
-      },
-    };
-  }
+  public abstract getPayload(messageObject: MessageType): any;
 
   /**
    * Returns message requestId meta data.
    * Used for receiving response messages from server. Can be overrided.
    * @param messageObject Message object
    */
-  public getRequestId(messageObject: PlainObject) {
-    return messageObject.meta?.requestId;
-  }
+  public abstract getRequestId(messageObject: MessageType): string | undefined;
+
+  /**
+   * Returns message object with type, payload and requestId in it.
+   * @param type Message type identifier
+   * @param payload Message payload
+   * @param requestId requestId meta data
+   */
+  protected abstract getMessageObject(type: string, payload?: any, requestId?: string): MessageType;
 
   /**
    * Build and serialize message out of its parts.
@@ -141,12 +111,13 @@ export default class MyWebSocket {
    * @param requestId requestId meta data
    */
   protected buildMessage(type: string, payload?: any, requestId?: string): string {
-    let messageObject: PlainObject = this.addRequestId({}, requestId);
-    messageObject = this.addPayload(messageObject, payload);
-    messageObject = this.addType(messageObject, type);
+    let messageObject = this.getMessageObject(type, payload, requestId);
     this.outgoingInterceptors.forEach((interceptor) => {
       messageObject = interceptor(messageObject);
     });
+
+    const validateFunction = this.outgoingJSONSchemas.get(type);
+    this.validate(messageObject, validateFunction);
     return JSON.stringify(messageObject);
   }
 
@@ -211,10 +182,15 @@ export default class MyWebSocket {
           // TODO: Custom error
           reject(new Error(`Timeout while waiting for response for type=${waitForType}`));
         }, this.timeout);
-        const callback = (responsePayload: PlainObject, message: string) => {
+        const callback = (responsePayload: any, message: string, error: string) => {
           clearTimeout(timeoutId);
           this.responseCallbacksByType.delete(waitForType);
-          resolve({ payload: responsePayload, message });
+          if (error) {
+            // TODO: Custom error
+            reject(error);
+          } else {
+            resolve({ payload: responsePayload, message });
+          }
         };
 
         const message = this.buildMessage(type, payload);
@@ -227,10 +203,15 @@ export default class MyWebSocket {
           // TODO: Custom error
           reject(new Error(`Timeout while waiting for response for requestId=${requestId}`));
         }, this.timeout);
-        const callback = (responsePayload: PlainObject, message: string) => {
+        const callback = (responsePayload: any, message: string, error: string) => {
           clearTimeout(timeoutId);
           this.responseCallbacksByRequestId.delete(requestId);
-          resolve({ payload: responsePayload, message });
+          if (error) {
+            // TODO: Custom error
+            reject(error);
+          } else {
+            resolve({ payload: responsePayload, message });
+          }
         };
 
         const message = this.buildMessage(type, payload, requestId);
@@ -238,6 +219,19 @@ export default class MyWebSocket {
         this.send(message);
       }
     });
+  }
+
+  private validate(messageObject: MessageType, validateFunction?: ValidateFunction) {
+    if (validateFunction && !validateFunction(messageObject) && validateFunction.errors) {
+      const errorMessage = validateFunction.errors.reduce((result, error) => {
+        if (error.message) {
+          result.push(error.message);
+        }
+        return result;
+      }, ['JSONSchema validation failed:'])
+        .join('\n');
+      throw new Error(errorMessage);
+    }
   }
 
   /**
@@ -252,6 +246,14 @@ export default class MyWebSocket {
     });
 
     const type = this.getType(messageObject);
+    const validateFunction = this.incomingJSONSchemas.get(type);
+    let error;
+    try {
+      this.validate(messageObject, validateFunction);
+    } catch (err) {
+      error = err;
+    }
+
     const payload = this.getPayload(messageObject);
     const requestId = this.getRequestId(messageObject);
 
@@ -260,11 +262,11 @@ export default class MyWebSocket {
       : this.responseCallbacksByType.get(type);
 
     if (requestHandler) {
-      requestHandler(payload, message);
+      requestHandler(payload, message, error);
     } else {
       const messageHandler = this.callbacksByType.get(type);
       if (messageHandler) {
-        messageHandler(payload, message);
+        messageHandler(payload, message, error);
       }
     }
   }
@@ -301,24 +303,43 @@ export default class MyWebSocket {
     /** Outgoing message interceptors */
     outgoing: {
       /** Add an outgoing message interceptor (which returns modified message object) */
-      use: (interceptor: MessageInterceptor) => {
+      use: (interceptor: (messageObject: MessageType) => MessageType) => {
         this.outgoingInterceptors.add(interceptor);
         return interceptor;
       },
       /** Remove a registered outgoing interceptor */
-      eject: (interceptor: MessageInterceptor) => {
+      eject: (interceptor: (messageObject: MessageType) => MessageType) => {
         this.outgoingInterceptors.delete(interceptor);
       },
     },
     incoming: {
       /** Add an incoming message interceptor (which returns modified message object) */
-      use: (interceptor: MessageInterceptor) => {
+      use: (interceptor: (messageObject: MessageType) => MessageType) => {
         this.incomingInterceptors.add(interceptor);
         return interceptor;
       },
       /** Remove a registered incoming interceptor */
-      eject: (interceptor: MessageInterceptor) => {
+      eject: (interceptor: (messageObject: MessageType) => MessageType) => {
         this.incomingInterceptors.delete(interceptor);
+      },
+    },
+  };
+
+  public validation = {
+    outgoing: {
+      addJSONSchema: (type: string, jsonSchema: SchemaObject) => {
+        this.outgoingJSONSchemas.set(type, this.ajv.compile(jsonSchema));
+      },
+      removeJSONSchema: (type: string) => {
+        this.outgoingJSONSchemas.delete(type);
+      },
+    },
+    incoming: {
+      addJSONSchema: (type: string, jsonSchema: SchemaObject) => {
+        this.incomingJSONSchemas.set(type, this.ajv.compile(jsonSchema));
+      },
+      removeJSONSchema: (type: string) => {
+        this.incomingJSONSchemas.delete(type);
       },
     },
   };
