@@ -80,7 +80,8 @@ const waitSocket = new WaitSocket(ws);
 You can define JSONSchema for each type of your incoming and outgoing messages. For incoming messages, validation process original deserialized message (before any interceptors). For outgoing messages, validation process resulting message (after all interceptors, but before serialization, of course).
 
 ```javascript
-this.waitSocket.addIncomingJSONSchema('MESSAGE_TYPE', jsonSchemaObject);
+waitSocket.validation.incoming.addJSONSchema('INCOMING_MESSAGE_TYPE', incomingJSONSchemaObject);
+waitSocket.validation.outgoing.addJSONSchema('OUTGOING_MESSAGE_TYPE', outgoingJSONSchemaObject);
 ```
 
 ## Customization
