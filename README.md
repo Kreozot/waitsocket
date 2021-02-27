@@ -21,6 +21,11 @@ Simplifies communication over WebSocket.
   const { payload } = await waitSocket.sendRequest('MESSAGE_TYPE', requestPayload);
   ```
 
+* JSONSchema validation of each type of incoming and outgoing messages:
+  ```javascript
+  waitSocket.validation.incoming.addJSONSchema('MESSAGE_TYPE', jsonSchemaObject);
+  ```
+
 * Ability to add interceptors to modify incoming and outgoing messages:
   ```javascript
   waitSocket.interceptors.incoming.use((messageObject) => {
