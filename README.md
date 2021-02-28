@@ -72,7 +72,7 @@ import WaitSocket from 'waitsocket';
 const waitSocket = new WaitSocket('ws://my.websocket.server:9000');
 ```
 
-Or you can use it with your own instance of WebSocket, and even with some extends like [RobustWebSocket](https://github.com/appuri/robust-websocket):
+Or you can use it with your own instance of WebSocket, or even with some extensions like [RobustWebSocket](https://github.com/appuri/robust-websocket):
 
 ```javascript
 const ws = new RobustWebSocket('ws://my.websocket.server:9000');
@@ -97,7 +97,7 @@ If you wish to use your own message format, you can do it by extending WaitSocke
 * `getRequestId(messageObject: MessageType): string` - Returns message requestId meta data.
 * `getMessageObject(type: string, payload?: any, requestId?: string): MessageType;` - Returns message object with type, payload and requestId in it.
 
-Example (use `body` parameter instead of `payload`):
+Example (using `body` parameter instead of `payload`):
 ```typescript
 class myWaitSocket extends AbstractWaitSocket<MyMessageType> {
   protected getMessageObject(type: string, payload?: any, requestId?: string) {

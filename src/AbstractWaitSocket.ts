@@ -5,7 +5,8 @@ import { SchemaObject, ValidateFunction } from 'ajv/dist/types';
 /** Default timeout for response message waiting */
 const DEFAULT_TIMEOUT = 10_000;
 
-export type OnMessageCallback = (payload: any, message: string, error?: string) => void;
+export type OnMessageCallback<PayloadType = any> =
+  (payload: PayloadType, message: string, error?: string) => void;
 
 /** WebSocket ready state */
 export enum ReadyState {
@@ -171,7 +172,7 @@ export default abstract class WaitSocket<MessageType> {
    * @param {string} type Message type identifier
    * @param {*} payload Message payload
    */
-  public sendMessage(type: string, payload?: any) {
+  public sendMessage<PayloadType = any>(type: string, payload?: PayloadType) {
     const message = this.buildMessage(type, payload);
     this.send(message);
   }
@@ -208,11 +209,11 @@ export default abstract class WaitSocket<MessageType> {
    * //   payload: {optionalPayload: 'example'},
    * // }
    */
-  public async sendRequest(
+  public async sendRequest<RequestPayloadType = any, ResponsePayloadType = any>(
     type: string,
-    payload?: any,
+    payload?: RequestPayloadType,
     waitForType?: string,
-  ): Promise<{ payload: any, message: string }> {
+  ): Promise<{ payload: ResponsePayloadType, message: string }> {
     return new Promise((resolve, reject) => {
       if (waitForType) {
         const timeoutId = setTimeout(() => {
@@ -220,7 +221,11 @@ export default abstract class WaitSocket<MessageType> {
           // TODO: Custom error
           reject(new Error(`Timeout while waiting for response for type=${waitForType}`));
         }, this.timeout);
-        const callback = (responsePayload: any, responseMessage: string, error: string) => {
+        const callback = (
+          responsePayload: ResponsePayloadType,
+          responseMessage: string,
+          error: string,
+        ) => {
           clearTimeout(timeoutId);
           this.responseCallbacksByType.delete(waitForType);
           if (error) {
@@ -241,7 +246,11 @@ export default abstract class WaitSocket<MessageType> {
           // TODO: Custom error
           reject(new Error(`Timeout while waiting for response for requestId=${requestId}`));
         }, this.timeout);
-        const callback = (responsePayload: any, responseMessage: string, error: string) => {
+        const callback = (
+          responsePayload: ResponsePayloadType,
+          responseMessage: string,
+          error: string,
+        ) => {
           clearTimeout(timeoutId);
           this.responseCallbacksByRequestId.delete(requestId);
           if (error) {
@@ -335,7 +344,7 @@ export default abstract class WaitSocket<MessageType> {
    * @param {string} type Message type identifier
    * @param {OnMessageCallback} callback Handler callback
    */
-  public onMessage(type: string, callback: OnMessageCallback) {
+  public onMessage<PayloadType = any>(type: string, callback: OnMessageCallback<PayloadType>) {
     this.callbacksByType.set(type, callback);
   }
 

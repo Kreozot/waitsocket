@@ -1,8 +1,8 @@
 {
   "name": "waitsocket",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0-rc.2",
   "description": "Library for better handling WebSocket interactions and waiting for response messages",
-  "main": "dist/WaitSocket.js",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc -d",
     "prepublishOnly": "npm test && npm run build",

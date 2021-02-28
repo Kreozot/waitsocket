@@ -2,7 +2,7 @@
 import RobustWebSocket from 'robust-websocket';
 
 import WSMock, { MessageType } from './ws-mock';
-import WaitSocket from '../src/WaitSocket';
+import WaitSocket from '../src/index';
 
 const wss = new WSMock();
 
