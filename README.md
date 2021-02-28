@@ -1,5 +1,7 @@
 # WaitSocket.js
 
+[![Build Status](https://travis-ci.org/Kreozot/waitsocket.svg?branch=main)](https://travis-ci.org/Kreozot/waitsocket)
+[![codecov](https://codecov.io/gh/Kreozot/waitsocket/branch/main/graph/badge.svg?token=MBOK47MES6)](https://codecov.io/gh/Kreozot/waitsocket)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Kreozot_waitsocket&metric=alert_status)](https://sonarcloud.io/dashboard?id=Kreozot_waitsocket)
 
 Simplifies communication over WebSocket.

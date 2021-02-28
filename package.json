@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc -d",
     "prepublishOnly": "npm test && npm run build",
-    "test": "jest --coverage"
+    "test": "jest --coverage",
+    "codecov": "codecov -f coverage/*.json"
   },
   "files": [
     "src",
@@ -30,6 +31,7 @@
     "@types/jsdom": "^16.2.6",
     "@types/ws": "^7.4.0",
     "@typescript-eslint/eslint-plugin": "^4.2.0",
+    "codecov": "^3.8.1",
     "eslint": "^7.20.0",
     "eslint-config-airbnb": "^18.2.1",
     "eslint-config-airbnb-typescript": "^12.3.1",
