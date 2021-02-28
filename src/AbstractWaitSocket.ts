@@ -16,6 +16,20 @@ export enum ReadyState {
 }
 
 export default abstract class WaitSocket<MessageType> {
+  /**
+   * Message type
+   *
+   * @typedef {*} MessageType
+   */
+
+  /**
+   * Message interceptor callback
+   *
+   * @callback InterceptorCallback
+   * @param {MessageType} messageObject Message object
+   * @returns {MessageType} Modified message object
+   */
+
   /** WebSocket instance */
   ws: WebSocket;
 
@@ -51,15 +65,20 @@ export default abstract class WaitSocket<MessageType> {
 
   /**
    * Constructor
-   * @param ws WebSocket instance (you can use any extensions, like RobustWebSocket)
-   * or WebSocket server URI string
+   *
+   * @param {(WebSocket|string)} ws WebSocket instance
+   * (you can use any extensions, like RobustWebSocket)
+   * or WebSocket endpoint URI string
+   * @param {SchemaObject} jsonSchema JSONSchema object for common message (for any type)
+   *
    * @example
-   * const waitSocket = new WaitSocket('ws://my.websocket.server:9000');
+   * const waitSocket = new WaitSocket('ws://my.websocket.server:9000', jsonSchema);
+   *
    * @example
    * const ws = new RobustWebSocket('ws://my.websocket.server:9000');
-   * const waitSocket = new WaitSocket(ws);
+   * const waitSocket = new WaitSocket(ws, jsonSchema);
    */
-  constructor(ws: WebSocket | string, jsonSchema: SchemaObject) {
+  constructor(ws: WebSocket | string, jsonSchema?: SchemaObject) {
     if (typeof ws === 'string') {
       this.ws = new WebSocket(ws);
     } else {
@@ -67,7 +86,9 @@ export default abstract class WaitSocket<MessageType> {
     }
     this.ws.addEventListener('message', this.handleMessage.bind(this));
     this.ajv = new Ajv();
-    this.validateCommonObject = this.ajv.compile(jsonSchema);
+    if (jsonSchema) {
+      this.validateCommonObject = this.ajv.compile(jsonSchema);
+    }
     this.callbacksByType = new Map();
     this.responseCallbacksByType = new Map();
     this.responseCallbacksByRequestId = new Map();
@@ -79,36 +100,50 @@ export default abstract class WaitSocket<MessageType> {
 
   /**
    * Returns message type. Can be overrided.
-   * @param messageObject Message object
+   *
+   * @abstract
+   * @param {MessageType} messageObject Message object
+   * @returns {string} Message type
    */
   public abstract getType(messageObject: MessageType): string;
 
   /**
    * Returns message payload. Can be overrided.
-   * @param messageObject Message object
+   *
+   * @abstract
+   * @param {MessageType} messageObject Message object
+   * @returns {*} Message payload
    */
   public abstract getPayload(messageObject: MessageType): any;
 
   /**
    * Returns message requestId meta data.
    * Used for receiving response messages from server. Can be overrided.
-   * @param messageObject Message object
+   *
+   * @abstract
+   * @param {MessageType} messageObject Message object
+   * @returns {string} Message requestId
    */
   public abstract getRequestId(messageObject: MessageType): string | undefined;
 
   /**
    * Returns message object with type, payload and requestId in it.
-   * @param type Message type identifier
-   * @param payload Message payload
-   * @param requestId requestId meta data
+   *
+   * @abstract
+   * @param {string} type Message type identifier
+   * @param {*} payload Message payload
+   * @param {string} requestId requestId meta data
+   * @returns {MessageType} Message object
    */
   protected abstract getMessageObject(type: string, payload?: any, requestId?: string): MessageType;
 
   /**
    * Build and serialize message out of its parts.
-   * @param type Message type identifier
-   * @param payload Message payload
-   * @param requestId requestId meta data
+   *
+   * @param {string} type Message type identifier
+   * @param {*} payload Message payload
+   * @param {string} requestId requestId meta data
+   * @returns {string} Serialized message ready to be sent
    */
   protected buildMessage(type: string, payload?: any, requestId?: string): string {
     let messageObject = this.getMessageObject(type, payload, requestId);
@@ -123,7 +158,8 @@ export default abstract class WaitSocket<MessageType> {
 
   /**
    * Send message to server
-   * @param message Serialized message
+   *
+   * @param {string} message Serialized message
    */
   public send(message: string) {
     this.ws.send(message);
@@ -131,8 +167,9 @@ export default abstract class WaitSocket<MessageType> {
 
   /**
    * Send message to server
-   * @param type Message type identifier
-   * @param payload Message payload
+   *
+   * @param {string} type Message type identifier
+   * @param {*} payload Message payload
    */
   public sendMessage(type: string, payload?: any) {
     const message = this.buildMessage(type, payload);
@@ -143,14 +180,14 @@ export default abstract class WaitSocket<MessageType> {
    * Send message to server and asynchronously wait for the response.
    * By default it adds random "requestId" parameter to "meta" section of the message.
    * In order to identify the response as relative to the specific request,
-   * server must return "meta.requestId" in the response message.
+   * server must return back this "meta.requestId" in the response message.
    * If server not returns "meta.requestId", you can specify "waitForType" parameter:
    * In that case the response will be identified by "type" in the response message.
-   * @param type Message type identifier.
-   * @param payload Message payload
-   * @param waitForType Message type in the response waiting for. Optional and not recommended.
-   * @param timeout Timeout value (ms) for waiting for the response.
-   * @returns Promise<{payload, message}>
+   *
+   * @param {string} type Message type identifier
+   * @param {*} payload Message payload
+   * @param {string} waitForType Message type in the response waiting for (not recommended)
+   * @returns {Promise<{payload, message}>} Object with payload and raw message string
    *
    * @example
    * // Recommended way
@@ -161,6 +198,7 @@ export default abstract class WaitSocket<MessageType> {
    * //   payload: { optionalPayload: 'example' },
    * //   meta: { requestId: 'nb1SQCTRmbDSv1u4idPr1' }
    * // }
+   *
    * @example
    * // Not recommended way
    * const {payload, message} =
@@ -221,6 +259,13 @@ export default abstract class WaitSocket<MessageType> {
     });
   }
 
+  /**
+   * Validate message object
+   *
+   * @param {MessageType} messageObject Message object
+   * @param {ValidateFunction} validateFunction Validate function
+   * @throws {Error} Validation error with all validation messages
+   */
   private validate(messageObject: MessageType, validateFunction?: ValidateFunction) {
     if (validateFunction && !validateFunction(messageObject) && validateFunction.errors) {
       const errorMessage = validateFunction.errors.reduce((result, error) => {
@@ -236,7 +281,8 @@ export default abstract class WaitSocket<MessageType> {
 
   /**
    * Handle incoming WebSocket message event
-   * @param event Message event object
+   *
+   * @param {MessageEvent} event Message event object
    */
   private handleMessage(event: MessageEvent) {
     const message = event.data;
@@ -271,7 +317,9 @@ export default abstract class WaitSocket<MessageType> {
     }
   }
 
-  /** Asynchronously wait for WebSocket connection to open */
+  /**
+   * Asynchronously wait for WebSocket connection to open
+   */
   public async waitForOpen() {
     if (this.ws.readyState === ReadyState.Open) {
       return;
@@ -283,8 +331,9 @@ export default abstract class WaitSocket<MessageType> {
 
   /**
    * Add handler for the message type
-   * @param type Message type identifier
-   * @param callback Handler callback
+   *
+   * @param {string} type Message type identifier
+   * @param {OnMessageCallback} callback Handler callback
    */
   public onMessage(type: string, callback: OnMessageCallback) {
     this.callbacksByType.set(type, callback);
@@ -292,7 +341,8 @@ export default abstract class WaitSocket<MessageType> {
 
   /**
    * Remove handler for the message type
-   * @param type Message type identifier
+   *
+   * @param {string} type Message type identifier
    */
   public offMessage(type: string) {
     this.callbacksByType.delete(type);
@@ -302,42 +352,94 @@ export default abstract class WaitSocket<MessageType> {
   public interceptors = {
     /** Outgoing message interceptors */
     outgoing: {
-      /** Add an outgoing message interceptor (which returns modified message object) */
+      /**
+       * Add an outgoing message interceptor (which returns modified message object)
+       *
+       * @param {InterceptorCallback} interceptor Outgoing message interceptor callback
+       * @returns {InterceptorCallback} Outgoing message interceptor callback
+       * (to store if you want it to be ejected later)
+       */
       use: (interceptor: (messageObject: MessageType) => MessageType) => {
         this.outgoingInterceptors.add(interceptor);
         return interceptor;
       },
-      /** Remove a registered outgoing interceptor */
+
+      /**
+       * Remove a registered outgoing interceptor
+       *
+       * @param {InterceptorCallback} interceptor Outgoing message interceptor callback
+       */
       eject: (interceptor: (messageObject: MessageType) => MessageType) => {
         this.outgoingInterceptors.delete(interceptor);
       },
     },
+
+    /** Incoming message interceptors */
     incoming: {
-      /** Add an incoming message interceptor (which returns modified message object) */
+      /**
+       * Add an incoming message interceptor (which returns modified message object)
+       *
+       * @param {InterceptorCallback} interceptor Incoming message interceptor callback
+       * @returns {InterceptorCallback} Incoming message interceptor callback
+       * (to store if you want it to be ejected later)
+       */
       use: (interceptor: (messageObject: MessageType) => MessageType) => {
         this.incomingInterceptors.add(interceptor);
         return interceptor;
       },
-      /** Remove a registered incoming interceptor */
+
+      /**
+       * Remove a registered incoming interceptor
+       *
+       * @param {InterceptorCallback} interceptor Incoming message interceptor callback
+       */
       eject: (interceptor: (messageObject: MessageType) => MessageType) => {
         this.incomingInterceptors.delete(interceptor);
       },
     },
   };
 
+  /** Messages validation */
   public validation = {
+    /** Outgoing messages validation */
     outgoing: {
+      /**
+       * Add JSONSchema for specific outgoing message type
+       *
+       * @param {string} type Outgoing message type
+       * @param {SchemaObject} jsonSchema JSONSchema object
+       */
       addJSONSchema: (type: string, jsonSchema: SchemaObject) => {
         this.outgoingJSONSchemas.set(type, this.ajv.compile(jsonSchema));
       },
+
+      /**
+       * Remove JSONSchema for specific outgoing message type
+       *
+       * @param {string} type Outgoing message type
+       */
       removeJSONSchema: (type: string) => {
         this.outgoingJSONSchemas.delete(type);
       },
     },
+
+    /** Incoming messages validation */
     incoming: {
+      /**
+       * Add JSONSchema for specific incoming message type
+       *
+       * @param {string} type Incoming message type
+       * @param {SchemaObject} jsonSchema JSONSchema object
+       */
       addJSONSchema: (type: string, jsonSchema: SchemaObject) => {
         this.incomingJSONSchemas.set(type, this.ajv.compile(jsonSchema));
       },
+
+      /**
+       * Remove JSONSchema for specific incoming message type
+       *
+       * @param {string} type Incoming message type
+       */
       removeJSONSchema: (type: string) => {
         this.incomingJSONSchemas.delete(type);
       },

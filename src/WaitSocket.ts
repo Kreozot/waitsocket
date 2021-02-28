@@ -13,10 +13,32 @@ export const DefaultMessageSchema = Type.Object({
 export type DefaultMessageType = Static<typeof DefaultMessageSchema>;
 
 export default class WaitSocket extends AbstractWaitSocket<DefaultMessageType> {
+  /**
+   * Constructor
+   *
+   * @param {(WebSocket|string)} ws WebSocket instance
+   * (you can use any extensions, like RobustWebSocket)
+   * or WebSocket endpoint URI string
+   *
+   * @example
+   * const waitSocket = new WaitSocket('ws://my.websocket.server:9000');
+   *
+   * @example
+   * const ws = new RobustWebSocket('ws://my.websocket.server:9000');
+   * const waitSocket = new WaitSocket(ws);
+   */
   constructor(ws: WebSocket | string) {
     super(ws, Type.Strict(DefaultMessageSchema));
   }
 
+  /**
+   * Returns message object with type, payload and requestId in it.
+   *
+   * @param {string} type Message type identifier
+   * @param {*} payload Message payload
+   * @param {string} requestId requestId meta data
+   * @returns {DefaultMessageType} Message object
+   */
   protected getMessageObject(type: string, payload?: any, requestId?: string) {
     const result: DefaultMessageType = { type };
     if (payload) {
@@ -28,13 +50,21 @@ export default class WaitSocket extends AbstractWaitSocket<DefaultMessageType> {
     return result;
   }
 
+  /**
+   * Returns message type. Can be overrided.
+   *
+   * @param {DefaultMessageType} messageObject Message object
+   * @returns {string} Message type
+   */
   public getType(messageObject: DefaultMessageType): string {
     return messageObject.type;
   }
 
   /**
-   * Returns message payload. Can be overrided.
-   * @param messageObject Message object
+   * Returns message payload.
+   *
+   * @param {DefaultMessageType} messageObject Message object
+   * @returns {*} Message payload
    */
   public getPayload(messageObject: DefaultMessageType): any {
     return messageObject.payload;
@@ -42,8 +72,10 @@ export default class WaitSocket extends AbstractWaitSocket<DefaultMessageType> {
 
   /**
    * Returns message requestId meta data.
-   * Used for receiving response messages from server. Can be overrided.
-   * @param messageObject Message object
+   * Used for receiving response messages from server.
+   *
+   * @param {DefaultMessageType} messageObject Message object
+   * @returns {string} Message requestId
    */
   public getRequestId(messageObject: DefaultMessageType): string | undefined {
     return messageObject.meta?.requestId;
