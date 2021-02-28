@@ -14,7 +14,7 @@ afterAll(() => {
   wss.close();
 });
 
-test('send() is working with WebSocket', async (cb) => {
+test('send() and onMessage() are working with WebSocket', async (done) => {
   const ws = new WebSocket(wss.url);
   const waitSocket = new WaitSocket(ws);
   await waitSocket.waitForOpen();
@@ -25,11 +25,11 @@ test('send() is working with WebSocket', async (cb) => {
     expect(messageObject.payload.test).toBe(123);
     expect(messageObject.type).toBe(MessageType.Message1Answer);
     ws.close();
-    cb();
+    done();
   });
 });
 
-test('send() is working with url parameter in constructor', async (cb) => {
+test('send() and onMessage() are working with url parameter in constructor', async (done) => {
   const waitSocket = new WaitSocket(wss.url);
   await waitSocket.waitForOpen();
   waitSocket.send('test');
@@ -38,11 +38,11 @@ test('send() is working with url parameter in constructor', async (cb) => {
     const messageObject = JSON.parse(message);
     expect(messageObject.payload.test).toBe(123);
     expect(messageObject.type).toBe(MessageType.Message1Answer);
-    cb();
+    done();
   });
 });
 
-test('send() is working with RobustWebSocket', async (cb) => {
+test('send() and onMessage() are working with RobustWebSocket', async (done) => {
   const ws = new RobustWebSocket(wss.url);
   const waitSocket = new WaitSocket(ws);
   await waitSocket.waitForOpen();
@@ -53,11 +53,11 @@ test('send() is working with RobustWebSocket', async (cb) => {
     expect(messageObject.payload.test).toBe(123);
     expect(messageObject.type).toBe(MessageType.Message1Answer);
     ws.close();
-    cb();
+    done();
   });
 });
 
-test('sendMessage() is working', async (cb) => {
+test('sendMessage() and onMessage() are working', async (done) => {
   const ws = new WebSocket(wss.url);
   const waitSocket = new WaitSocket(ws);
   await waitSocket.waitForOpen();
@@ -68,11 +68,11 @@ test('sendMessage() is working', async (cb) => {
     expect(messageObject.payload.test).toBe(123);
     expect(messageObject.type).toBe(MessageType.Message1Answer);
     ws.close();
-    cb();
+    done();
   });
 });
 
-test('sendRequest() is working', async (cb) => {
+test('sendRequest() is working', async (done) => {
   const ws = new WebSocket(wss.url);
   const waitSocket = new WaitSocket(ws);
   await waitSocket.waitForOpen();
@@ -82,7 +82,7 @@ test('sendRequest() is working', async (cb) => {
   expect(messageObject.payload.test).toBe(234);
   expect(messageObject.type).toBe(MessageType.Request1Answer);
   ws.close();
-  cb();
+  done();
 });
 
 test('sendRequest() rejects when no response', async () => {
@@ -130,7 +130,7 @@ test('waitForOpen() is working after open', async () => {
   ws.close();
 });
 
-test('off() removes the callback', async (cb) => {
+test('off() removes the callback', async (done) => {
   const ws = new WebSocket(wss.url);
   const waitSocket = new WaitSocket(ws);
   waitSocket.timeout = 100;
@@ -144,7 +144,7 @@ test('off() removes the callback', async (cb) => {
   setTimeout(() => {
     expect(callback).not.toBeCalled();
     ws.close();
-    cb();
+    done();
   }, 100);
 });
 

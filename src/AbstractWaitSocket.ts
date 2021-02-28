@@ -61,6 +61,9 @@ export default abstract class WaitSocket<MessageType> {
   /** Map of JSONSchemas by incoming message type */
   incomingJSONSchemas: Map<string, ValidateFunction<MessageType>>;
 
+  /** Map of JSONSchemas by incoming requestId */
+  incomingJSONSchemasByRequestId: Map<string, ValidateFunction<MessageType>>;
+
   /** Map of JSONSchemas by outgoing message type */
   outgoingJSONSchemas: Map<string, ValidateFunction<MessageType>>;
 
@@ -96,6 +99,7 @@ export default abstract class WaitSocket<MessageType> {
     this.incomingInterceptors = new Set();
     this.outgoingInterceptors = new Set();
     this.incomingJSONSchemas = new Map();
+    this.incomingJSONSchemasByRequestId = new Map();
     this.outgoingJSONSchemas = new Map();
   }
 
@@ -136,7 +140,7 @@ export default abstract class WaitSocket<MessageType> {
    * @param {string} requestId requestId meta data
    * @returns {MessageType} Message object
    */
-  protected abstract getMessageObject(type: string, payload?: any, requestId?: string): MessageType;
+  public abstract getMessageObject(type: string, payload?: any, requestId?: string): MessageType;
 
   /**
    * Build and serialize message out of its parts.
@@ -144,15 +148,29 @@ export default abstract class WaitSocket<MessageType> {
    * @param {string} type Message type identifier
    * @param {*} payload Message payload
    * @param {string} requestId requestId meta data
+   * @param {SchemaObject} jsonSchema JSONSchema object to validate message.
+   * If not set, tries to get a JSONSchema for this message type from assigned by
+   * validation.outgoing.AddJSONSchema()
    * @returns {string} Serialized message ready to be sent
    */
-  protected buildMessage(type: string, payload?: any, requestId?: string): string {
+  protected buildMessage(
+    type: string,
+    payload?: any,
+    requestId?: string,
+    jsonSchema?: SchemaObject,
+  ): string {
     let messageObject = this.getMessageObject(type, payload, requestId);
     this.outgoingInterceptors.forEach((interceptor) => {
       messageObject = interceptor(messageObject);
     });
 
-    const validateFunction = this.outgoingJSONSchemas.get(type);
+    if (this.validateCommonObject) {
+      // TODO: Tests on this
+      this.validate(messageObject, this.validateCommonObject);
+    }
+    const validateFunction = jsonSchema
+      ? this.ajv.compile(jsonSchema)
+      : this.outgoingJSONSchemas.get(type);
     this.validate(messageObject, validateFunction);
     return JSON.stringify(messageObject);
   }
@@ -171,9 +189,14 @@ export default abstract class WaitSocket<MessageType> {
    *
    * @param {string} type Message type identifier
    * @param {*} payload Message payload
+   * @param {SchemaObject} jsonSchema JSONSchema object to validate message before sending
    */
-  public sendMessage<PayloadType = any>(type: string, payload?: PayloadType) {
-    const message = this.buildMessage(type, payload);
+  public sendMessage<PayloadType = any>(
+    type: string,
+    payload?: PayloadType,
+    jsonSchema?: SchemaObject,
+  ) {
+    const message = this.buildMessage(type, payload, undefined, jsonSchema);
     this.send(message);
   }
 
@@ -188,6 +211,10 @@ export default abstract class WaitSocket<MessageType> {
    * @param {string} type Message type identifier
    * @param {*} payload Message payload
    * @param {string} waitForType Message type in the response waiting for (not recommended)
+     @param {SchemaObject} requestJSONSchema JSONSchema object to validate request message
+     before sending
+     @param {SchemaObject} responseJSONSchema JSONSchema object to validate response message
+     after receiving
    * @returns {Promise<{payload, message}>} Object with payload and raw message string
    *
    * @example
@@ -213,9 +240,15 @@ export default abstract class WaitSocket<MessageType> {
     type: string,
     payload?: RequestPayloadType,
     waitForType?: string,
+    requestJSONSchema?: SchemaObject,
+    responseJSONSchema?: SchemaObject,
   ): Promise<{ payload: ResponsePayloadType, message: string }> {
     return new Promise((resolve, reject) => {
       if (waitForType) {
+        if (responseJSONSchema) {
+          this.validation.incoming.addJSONSchema(type, responseJSONSchema);
+        }
+
         const timeoutId = setTimeout(() => {
           this.responseCallbacksByType.delete(waitForType);
           // TODO: Custom error
@@ -230,19 +263,25 @@ export default abstract class WaitSocket<MessageType> {
           this.responseCallbacksByType.delete(waitForType);
           if (error) {
             // TODO: Custom error
-            reject(error);
+            reject(new Error(error));
           } else {
             resolve({ payload: responsePayload, message: responseMessage });
           }
         };
 
-        const message = this.buildMessage(type, payload);
+        const message = this.buildMessage(type, payload, undefined, requestJSONSchema);
         this.responseCallbacksByType.set(waitForType, callback);
         this.send(message);
       } else {
         const requestId = nanoid();
+
+        if (responseJSONSchema) {
+          this.incomingJSONSchemasByRequestId.set(requestId, this.ajv.compile(responseJSONSchema));
+        }
+
         const timeoutId = setTimeout(() => {
           this.responseCallbacksByRequestId.delete(requestId);
+          this.incomingJSONSchemasByRequestId.delete(requestId);
           // TODO: Custom error
           reject(new Error(`Timeout while waiting for response for requestId=${requestId}`));
         }, this.timeout);
@@ -253,15 +292,16 @@ export default abstract class WaitSocket<MessageType> {
         ) => {
           clearTimeout(timeoutId);
           this.responseCallbacksByRequestId.delete(requestId);
+          this.incomingJSONSchemasByRequestId.delete(requestId);
           if (error) {
             // TODO: Custom error
-            reject(error);
+            reject(new Error(error));
           } else {
             resolve({ payload: responsePayload, message: responseMessage });
           }
         };
 
-        const message = this.buildMessage(type, payload, requestId);
+        const message = this.buildMessage(type, payload, requestId, requestJSONSchema);
         this.responseCallbacksByRequestId.set(requestId, callback);
         this.send(message);
       }
@@ -294,30 +334,49 @@ export default abstract class WaitSocket<MessageType> {
    * @param {MessageEvent} event Message event object
    */
   private handleMessage(event: MessageEvent) {
-    const message = event.data;
-    let messageObject = JSON.parse(message);
-    this.incomingInterceptors.forEach((interceptor) => {
-      messageObject = interceptor(messageObject);
-    });
-
-    const type = this.getType(messageObject);
-    const validateFunction = this.incomingJSONSchemas.get(type);
-    let error;
+    const errors = [];
+    let payload;
+    let message;
+    let type = '';
+    let requestId;
     try {
-      this.validate(messageObject, validateFunction);
+      message = event.data;
+      let messageObject = JSON.parse(message);
+      try {
+        this.validate(messageObject, this.validateCommonObject);
+      } catch (err) {
+        errors.push(err);
+      }
+      this.incomingInterceptors.forEach((interceptor) => {
+        messageObject = interceptor(messageObject);
+      });
+
+      type = this.getType(messageObject);
+      try {
+        this.validate(messageObject, this.incomingJSONSchemas.get(type));
+      } catch (err) {
+        errors.push(err);
+      }
+
+      payload = this.getPayload(messageObject);
+      requestId = this.getRequestId(messageObject);
+      if (requestId) {
+        this.validate(messageObject, this.incomingJSONSchemasByRequestId.get(requestId));
+      }
     } catch (err) {
-      error = err;
+      errors.push(err);
     }
 
-    const payload = this.getPayload(messageObject);
-    const requestId = this.getRequestId(messageObject);
-
-    const requestHandler = requestId
+    const responseHandler = requestId
       ? this.responseCallbacksByRequestId.get(requestId)
       : this.responseCallbacksByType.get(type);
 
-    if (requestHandler) {
-      requestHandler(payload, message, error);
+    const error = errors.length
+      ? errors.join('\n')
+      : undefined;
+
+    if (responseHandler) {
+      responseHandler(payload, message, error);
     } else {
       const messageHandler = this.callbacksByType.get(type);
       if (messageHandler) {
@@ -343,8 +402,16 @@ export default abstract class WaitSocket<MessageType> {
    *
    * @param {string} type Message type identifier
    * @param {OnMessageCallback} callback Handler callback
+   * @param {SchemaObject} jsonSchema JSONSchema object to validate message after receiving
    */
-  public onMessage<PayloadType = any>(type: string, callback: OnMessageCallback<PayloadType>) {
+  public onMessage<PayloadType = any>(
+    type: string,
+    callback: OnMessageCallback<PayloadType>,
+    jsonSchema?: SchemaObject,
+  ) {
+    if (jsonSchema) {
+      this.validation.incoming.addJSONSchema(type, jsonSchema);
+    }
     this.callbacksByType.set(type, callback);
   }
 
@@ -354,6 +421,7 @@ export default abstract class WaitSocket<MessageType> {
    * @param {string} type Message type identifier
    */
   public offMessage(type: string) {
+    this.validation.incoming.removeJSONSchema(type);
     this.callbacksByType.delete(type);
   }
 

@@ -1,4 +1,5 @@
 import { Type, Static } from '@sinclair/typebox';
+import { SchemaObject } from 'ajv';
 
 import AbstractWaitSocket from './AbstractWaitSocket';
 
@@ -19,6 +20,7 @@ export default class WaitSocket extends AbstractWaitSocket<DefaultMessageType> {
    * @param {(WebSocket|string)} ws WebSocket instance
    * (you can use any extensions, like RobustWebSocket)
    * or WebSocket endpoint URI string
+   * @param {SchemaObject} jsonSchema JSONSchema object for common message (for any type)
    *
    * @example
    * const waitSocket = new WaitSocket('ws://my.websocket.server:9000');
@@ -27,8 +29,11 @@ export default class WaitSocket extends AbstractWaitSocket<DefaultMessageType> {
    * const ws = new RobustWebSocket('ws://my.websocket.server:9000');
    * const waitSocket = new WaitSocket(ws);
    */
-  constructor(ws: WebSocket | string) {
-    super(ws, Type.Strict(DefaultMessageSchema));
+  constructor(
+    ws: WebSocket | string,
+    jsonSchema: SchemaObject = Type.Strict(DefaultMessageSchema),
+  ) {
+    super(ws, jsonSchema);
   }
 
   /**
@@ -39,7 +44,7 @@ export default class WaitSocket extends AbstractWaitSocket<DefaultMessageType> {
    * @param {string} requestId requestId meta data
    * @returns {DefaultMessageType} Message object
    */
-  protected getMessageObject(type: string, payload?: any, requestId?: string) {
+  public getMessageObject(type: string, payload?: any, requestId?: string) {
     const result: DefaultMessageType = { type };
     if (payload) {
       result.payload = payload;
