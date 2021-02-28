@@ -220,14 +220,14 @@ export default abstract class WaitSocket<MessageType> {
           // TODO: Custom error
           reject(new Error(`Timeout while waiting for response for type=${waitForType}`));
         }, this.timeout);
-        const callback = (responsePayload: any, message: string, error: string) => {
+        const callback = (responsePayload: any, responseMessage: string, error: string) => {
           clearTimeout(timeoutId);
           this.responseCallbacksByType.delete(waitForType);
           if (error) {
             // TODO: Custom error
             reject(error);
           } else {
-            resolve({ payload: responsePayload, message });
+            resolve({ payload: responsePayload, message: responseMessage });
           }
         };
 
@@ -241,14 +241,14 @@ export default abstract class WaitSocket<MessageType> {
           // TODO: Custom error
           reject(new Error(`Timeout while waiting for response for requestId=${requestId}`));
         }, this.timeout);
-        const callback = (responsePayload: any, message: string, error: string) => {
+        const callback = (responsePayload: any, responseMessage: string, error: string) => {
           clearTimeout(timeoutId);
           this.responseCallbacksByRequestId.delete(requestId);
           if (error) {
             // TODO: Custom error
             reject(error);
           } else {
-            resolve({ payload: responsePayload, message });
+            resolve({ payload: responsePayload, message: responseMessage });
           }
         };
 
