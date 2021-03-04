@@ -90,6 +90,8 @@ export default abstract class WaitSocket<MessageType> {
     }
     this.ws.addEventListener('message', this.handleMessage.bind(this));
     this.ajv = new Ajv();
+    this.ajv.addKeyword('kind');
+    this.ajv.addKeyword('modifier');
     if (jsonSchema) {
       this.validateCommonObject = this.ajv.compile(jsonSchema);
     }
