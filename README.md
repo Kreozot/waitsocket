@@ -30,7 +30,7 @@ Simplifies communication over WebSocket.
   waitSocket.validation.incoming.addJSONSchema('MESSAGE_TYPE', jsonSchemaObject);
   ```
 
-* Ability to add interceptors to modify incoming and outgoing messages:
+* Ability to add interceptors to debug or modify incoming and outgoing messages:
   ```javascript
   waitSocket.interceptors.incoming.use((messageObject) => {
     console.log('Let\'s see what we have received', messageObject);
@@ -81,7 +81,33 @@ const waitSocket = new WaitSocket(ws);
 
 ## JSONSchema Validation
 
-You can define JSONSchema for each type of your incoming and outgoing messages. For incoming messages, validation process original deserialized message (before any interceptors). For outgoing messages, validation process resulting message (after all interceptors, but before serialization, of course).
+You can define JSONSchema for each type of your incoming and outgoing messages. For incoming messages, validation processes original deserialized message (before any interceptors). For outgoing messages, validation processes resulting message (after all interceptors, but before serialization, of course).
+
+There is two ways of defining JSONSchema for messages: directly as a function argument when you send or receive a message, or link your JSONSchema to certain message type. You can combine these ways, for example, using type linking for outgoing messages (since you can send one message type in many places) and passing JSONSchema as a parameter to message handlers (since you probably handle one message type in one place).
+
+It may seems excessive, to validate your own outgoing messages on a client side. But since it wouldn't cost you too much and there are still ways to corrupt your data (with interceptors or even with refactoring), I'm highly recommend you to validate both directions of your communication through WebSocket.
+
+### Way 1: Using JSONSchema directly in message functions
+
+#### sendMessage
+
+```javascript
+waitSocket.sendMessage('OUTGOING_MESSAGE_TYPE', payload, outgoingJSONSchemaObject);
+```
+
+#### sendRequest
+
+```javascript
+waitSocket.sendRequest('OUTGOING_MESSAGE_TYPE', payload, null, outgoingJSONSchemaObject, incomingJSONSchemaObject);
+```
+
+#### onMessage
+
+```javascript
+waitSocket.onMessage('OUTGOING_MESSAGE_TYPE', (payload) => {...}, incomingJSONSchemaObject);
+```
+
+### Way 2: Linking JSONSchema for message type
 
 ```javascript
 waitSocket.validation.incoming.addJSONSchema('INCOMING_MESSAGE_TYPE', incomingJSONSchemaObject);
