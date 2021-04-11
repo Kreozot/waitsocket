@@ -59,6 +59,7 @@
     "response",
     "request"
   ],
+  "homepage": "https://kreozot.github.io/waitsocket/",
   "author": "Sergey Sharov <sergey@sharov.dev> (https://sharov.dev)",
   "license": "ISC"
 }
