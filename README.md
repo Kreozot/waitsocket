@@ -1,8 +1,10 @@
 # WaitSocket.js
 
+[![NPM version](https://badgen.net/npm/v/waitsocket)](https://www.npmjs.com/package/waitsocket)
 [![Build Status](https://travis-ci.org/Kreozot/waitsocket.svg?branch=main)](https://travis-ci.org/Kreozot/waitsocket)
 [![codecov](https://codecov.io/gh/Kreozot/waitsocket/branch/main/graph/badge.svg?token=MBOK47MES6)](https://codecov.io/gh/Kreozot/waitsocket)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Kreozot_waitsocket&metric=alert_status)](https://sonarcloud.io/dashboard?id=Kreozot_waitsocket)
+[![Bundlephobia](https://badgen.net/bundlephobia/min/waitsocket)](https://bundlephobia.com/result?p=waitsocket)
 
 Simplifies communication over WebSocket.
 
@@ -17,7 +19,7 @@ Simplifies communication over WebSocket.
 
 * Convenient way to handle incoming messages:
   ```javascript
-  waitSocket.on('MESSAGE_TYPE', (payload) => doSomething(payload));
+  waitSocket.onMessage('MESSAGE_TYPE', (payload) => doSomething(payload));
   ```
 
 * Ability to use a request/response paradigm with WebSockets (mechanism described below):
