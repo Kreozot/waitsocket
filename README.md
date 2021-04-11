@@ -60,6 +60,8 @@ yarn add waitsocket
 
 ## Usage
 
+[API documentation](https://kreozot.github.io/waitsocket/)
+
 ### Importing
 
 ```javascript
