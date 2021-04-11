@@ -7,7 +7,8 @@
     "build": "tsc -d",
     "prepublishOnly": "npm test && npm run build",
     "test": "jest --coverage",
-    "codecov": "codecov -f coverage/*.json"
+    "codecov": "codecov -f coverage/*.json",
+    "docs": "typedoc src/index.ts"
   },
   "files": [
     "src",
@@ -47,6 +48,7 @@
     "lint-staged": "^10.5.4",
     "robust-websocket": "^1.0.0",
     "ts-jest": "^26.5.1",
+    "typedoc": "^0.20.35",
     "typescript": "^4.1.5",
     "ws": "^7.4.3"
   },

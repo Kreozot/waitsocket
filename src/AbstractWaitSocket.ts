@@ -76,11 +76,15 @@ export default abstract class WaitSocket<MessageType> {
    * @param {SchemaObject} jsonSchema JSONSchema object for common message (for any type)
    *
    * @example
+   * ```
    * const waitSocket = new WaitSocket('ws://my.websocket.server:9000', jsonSchema);
+   * ```
    *
    * @example
+   * ```
    * const ws = new RobustWebSocket('ws://my.websocket.server:9000');
    * const waitSocket = new WaitSocket(ws, jsonSchema);
+   * ```
    */
   constructor(ws: WebSocket | string, jsonSchema?: SchemaObject) {
     if (typeof ws === 'string') {
@@ -220,6 +224,7 @@ export default abstract class WaitSocket<MessageType> {
    * @returns {Promise<{payload, message}>} Object with payload and raw message string
    *
    * @example
+   * ```
    * // Recommended way
    * const {payload, message} =
    *   await sendRequest('MY_REQUEST', { optionalPayload: 'example' });
@@ -228,8 +233,10 @@ export default abstract class WaitSocket<MessageType> {
    * //   payload: { optionalPayload: 'example' },
    * //   meta: { requestId: 'nb1SQCTRmbDSv1u4idPr1' }
    * // }
+   * ```
    *
    * @example
+   * ```
    * // Not recommended way
    * const {payload, message} =
    *   await sendRequest('MY_REQUEST', { optionalPayload: 'example' }, 'MY_RESPONSE');
@@ -237,6 +244,7 @@ export default abstract class WaitSocket<MessageType> {
    * //   type: 'MY_REQUEST',
    * //   payload: {optionalPayload: 'example'},
    * // }
+   * ```
    */
   public async sendRequest<RequestPayloadType = any, ResponsePayloadType = any>(
     type: string,

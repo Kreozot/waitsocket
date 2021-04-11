@@ -23,11 +23,15 @@ export default class WaitSocket extends AbstractWaitSocket<DefaultMessageType> {
    * @param {SchemaObject} jsonSchema JSONSchema object for common message (for any type)
    *
    * @example
+   * ```
    * const waitSocket = new WaitSocket('ws://my.websocket.server:9000');
+   * ```
    *
    * @example
+   * ```
    * const ws = new RobustWebSocket('ws://my.websocket.server:9000');
    * const waitSocket = new WaitSocket(ws);
+   * ```
    */
   constructor(
     ws: WebSocket | string,
