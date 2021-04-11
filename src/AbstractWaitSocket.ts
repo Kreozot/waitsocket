@@ -35,37 +35,37 @@ export default abstract class WaitSocket<MessageType> {
   ws: WebSocket;
 
   /** AJV instance for validate message by JSONSchema */
-  ajv: Ajv;
+  private ajv: Ajv;
 
   /** Validation function for common message format */
-  validateCommonObject: ValidateFunction<MessageType>;
+  private validateCommonObject: ValidateFunction<MessageType>;
 
   /** Timeout for response message waiting */
   public timeout: number = DEFAULT_TIMEOUT;
 
   /** Callbacks for incoming messages by type. Adds by on() function */
-  callbacksByType: Map<string, OnMessageCallback>;
+  private callbacksByType: Map<string, OnMessageCallback>;
 
   /** Callbacks for response messages by type. Adds by sendRequest() with waitForType parameter. */
-  responseCallbacksByType: Map<string, OnMessageCallback>;
+  private responseCallbacksByType: Map<string, OnMessageCallback>;
 
   /** Callbacks for response messages by requestId. Adds by sendRequest() */
-  responseCallbacksByRequestId: Map<string, OnMessageCallback>;
+  private responseCallbacksByRequestId: Map<string, OnMessageCallback>;
 
   /** Incoming message interceptors */
-  incomingInterceptors: Set<(messageObject: MessageType) => MessageType>;
+  private incomingInterceptors: Set<(messageObject: MessageType) => MessageType>;
 
   /** Outgoing message interceptors */
-  outgoingInterceptors: Set<(messageObject: MessageType) => MessageType>;
+  private outgoingInterceptors: Set<(messageObject: MessageType) => MessageType>;
 
   /** Map of JSONSchemas by incoming message type */
-  incomingJSONSchemas: Map<string, ValidateFunction<MessageType>>;
+  private incomingJSONSchemas: Map<string, ValidateFunction<MessageType>>;
 
   /** Map of JSONSchemas by incoming requestId */
-  incomingJSONSchemasByRequestId: Map<string, ValidateFunction<MessageType>>;
+  private incomingJSONSchemasByRequestId: Map<string, ValidateFunction<MessageType>>;
 
   /** Map of JSONSchemas by outgoing message type */
-  outgoingJSONSchemas: Map<string, ValidateFunction<MessageType>>;
+  private outgoingJSONSchemas: Map<string, ValidateFunction<MessageType>>;
 
   /**
    * Constructor
